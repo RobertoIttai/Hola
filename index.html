@@ -2,15 +2,32 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Experimento con JS</title>
+  <title>Ubicación con un clic</title>
 </head>
 <body>
-  <h1 id="titulo">Hola, esta es mi página de prueba</h1>
-  <button onclick="cambiarTexto()">Haz clic aquí</button>
+  <h1>Obtener ubicación</h1>
+  <button onclick="pedirUbicacion()">¿Dónde estoy?</button>
+  <p id="resultado"></p>
 
   <script>
-    function cambiarTexto() {
-      document.getElementById('titulo').innerText = '¡Has cambiado el texto con un clic!';
+    function pedirUbicacion() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          function(posicion) {
+            const lat = posicion.coords.latitude;
+            const lon = posicion.coords.longitude;
+            document.getElementById("resultado").innerText = 
+              `Latitud: ${lat}\nLongitud: ${lon}`;
+          },
+          function(error) {
+            document.getElementById("resultado").innerText =
+              "Error: No se pudo obtener la ubicación.";
+          }
+        );
+      } else {
+        document.getElementById("resultado").innerText =
+          "Tu navegador no soporta geolocalización.";
+      }
     }
   </script>
 </body>
