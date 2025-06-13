@@ -14,27 +14,27 @@
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           function(pos) {
-            const lat = pos.coords.latitude;
-            const lon = pos.coords.longitude;
-
-            fetch("https://script.google.com/macros/s/AKfycbxw2IRu-rgQJDtMIE7w1nASvZaBOXyUlMSbKAeXl-RZw4NmvyfodNZfNVbIjVzhsKK1SQ/exec", {
+            fetch("TU_URL_DEL_SCRIPT_AQUÍ", {
               method: "POST",
-              body: JSON.stringify({  latitude: lat, 
-longitude: lon  }),
               headers: {
                 "Content-Type": "application/json"
-              }
+              },
+              body: JSON.stringify({
+                latitude: pos.coords.latitude,
+                longitude: pos.coords.longitude
+              })
             })
             .then(res => res.text())
             .then(msg => {
               document.getElementById("mensaje").innerText = "✅ Ubicación enviada correctamente.";
             })
             .catch(err => {
-              document.getElementById("mensaje").innerText = "❌ Error al enviar ubicación.";
+              document.getElementById("mensaje").innerText = "❌ Error al enviar ubicación: " + err.message;
+              console.error(err);
             });
           },
           function(error) {
-            document.getElementById("mensaje").innerText = "❌ No se pudo obtener la ubicación.";
+            document.getElementById("mensaje").innerText = "❌ No se pudo obtener la ubicación: " + error.message;
           }
         );
       } else {
@@ -44,5 +44,3 @@ longitude: lon  }),
   </script>
 </body>
 </html>
-
-
