@@ -5,7 +5,6 @@
   <title>Compartir ubicación</title>
 </head>
 <body>
-  <h1>Enviar mi ubicación a la hoja</h1>
   <button onclick="enviarUbicacion()">Compartir ubicación</button>
   <p id="mensaje"></p>
 
@@ -14,27 +13,27 @@
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           function(pos) {
+            const lat = pos.coords.latitude;
+            const lon = pos.coords.longitude;
+
             fetch("https://script.google.com/macros/s/AKfycbwdwxubfNMMa0bfIdWJTu3_WyI_W9_pa_dnb3k68-h9MJ5-SNDJc0VvkzeFUNIjCU4HNg/exec", {
               method: "POST",
+              mode: "cors",
               headers: {
                 "Content-Type": "application/json"
               },
-              body: JSON.stringify({
-                latitude: pos.coords.latitude,
-                longitude: pos.coords.longitude
-              })
+              body: JSON.stringify({ lat, lon })
             })
             .then(res => res.text())
             .then(msg => {
               document.getElementById("mensaje").innerText = "✅ Ubicación enviada correctamente.";
             })
             .catch(err => {
-              document.getElementById("mensaje").innerText = "❌ Error al enviar ubicación: " + err.message;
-              console.error(err);
+              document.getElementById("mensaje").innerText = "❌ Error al enviar ubicación.";
             });
           },
           function(error) {
-            document.getElementById("mensaje").innerText = "❌ No se pudo obtener la ubicación: " + error.message;
+            document.getElementById("mensaje").innerText = "❌ No se pudo obtener la ubicación.";
           }
         );
       } else {
@@ -44,3 +43,4 @@
   </script>
 </body>
 </html>
+
