@@ -2,10 +2,10 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Ubicación con un clic</title>
+  <title>Ubicación en Google Maps</title>
 </head>
 <body>
-  <h1>Obtener ubicación</h1>
+  <h1>Mostrar ubicación en Google Maps</h1>
   <button onclick="pedirUbicacion()">¿Dónde estoy?</button>
   <p id="resultado"></p>
 
@@ -16,8 +16,9 @@
           function(posicion) {
             const lat = posicion.coords.latitude;
             const lon = posicion.coords.longitude;
-            document.getElementById("resultado").innerText = 
-              `Latitud: ${lat}\nLongitud: ${lon}`;
+            const url = `https://www.google.com/maps?q=${lat},${lon}`;
+            document.getElementById("resultado").innerHTML = 
+              `📍 <a href="${url}" target="_blank">Ver en Google Maps</a>`;
           },
           function(error) {
             document.getElementById("resultado").innerText =
@@ -32,3 +33,4 @@
   </script>
 </body>
 </html>
+
