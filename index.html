@@ -19,7 +19,8 @@
 
             fetch("https://script.google.com/macros/s/AKfycbxw2IRu-rgQJDtMIE7w1nASvZaBOXyUlMSbKAeXl-RZw4NmvyfodNZfNVbIjVzhsKK1SQ/exec", {
               method: "POST",
-              body: JSON.stringify({ lat, lon }),
+              body: JSON.stringify({  latitude: lat, 
+longitude: lon  }),
               headers: {
                 "Content-Type": "application/json"
               }
