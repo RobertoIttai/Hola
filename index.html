@@ -18,7 +18,7 @@
             const lon = posicion.coords.longitude;
             const url = `https://www.google.com/maps?q=${lat},${lon}`;
             document.getElementById("resultado").innerHTML = 
-              `📍 <a href="${url}" target="_blank">Ver en Google Maps</a>`;
+              ` <a href="${url}" target="_blank">Ver en Google Maps</a>`;
           },
           function(error) {
             document.getElementById("resultado").innerText =
