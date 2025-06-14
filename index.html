@@ -3,12 +3,29 @@
 <head>
   <meta charset="UTF-8" />
   <title>Compartir ubicación</title>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js"></script>
 </head>
 <body>
   <button onclick="enviarUbicacion()">Compartir ubicación</button>
   <p id="mensaje"></p>
 
   <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyAkfDt7Y68mWug0ofaUQ276oHlsqWDSW9I",
+  authDomain: "ubicacion-900b9.firebaseapp.com",
+  projectId: "ubicacion-900b9",
+  storageBucket: "ubicacion-900b9.appspot.com",
+  messagingSenderId: "711919594487",
+  appId: "1:711919594487:web:538aac6d2c6ec5c7205cf2",
+  measurementId: "G-53Z7CN9RDV"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
     function enviarUbicacion() {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
@@ -16,19 +33,16 @@
             const lat = pos.coords.latitude;
             const lon = pos.coords.longitude;
 
-            fetch("https://script.google.com/macros/s/AKfycbwdwxubfNMMa0bfIdWJTu3_WyI_W9_pa_dnb3k68-h9MJ5-SNDJc0VvkzeFUNIjCU4HNg/exec", {
-              method: "POST",
-              mode: "cors",
-              headers: {
-                "Content-Type": "application/json"
-              },
-              body: JSON.stringify({ lat, lon })
+            const ref = database.ref('ubicaciones');
+            ref.push({
+              lat: lat,
+              lon: lon,
+              timestamp: Date.now()
             })
-            .then(res => res.text())
-            .then(msg => {
+            .then(() => {
               document.getElementById("mensaje").innerText = "✅ Ubicación enviada correctamente.";
             })
-            .catch(err => {
+            .catch((err) => {
               document.getElementById("mensaje").innerText = "❌ Error al enviar ubicación.";
             });
           },
