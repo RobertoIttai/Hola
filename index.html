@@ -2,30 +2,73 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Compartir ubicación</title>
+  <title>Compartir ubicación con mapa</title>
 
-  <!-- Firebase SDKs -->
-<script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-database-compat.js"></script>
+  <!-- Firebase SDKs (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-database-compat.js"></script>
+
+  <!-- Google Maps JS API -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBNo9ChjPaXh7eWtUS4FnY8-gJOzBTY20w"></script>
+
+  <style>
+    #map {
+      height: 400px;
+      width: 100%;
+      margin-top: 10px;
+    }
+  </style>
 </head>
 <body>
   <button onclick="enviarUbicacion()">Compartir ubicación</button>
   <p id="mensaje"></p>
+  <div id="map"></div>
 
   <script>
+    // Config Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyAkfDt7Y68mWug0ofaUQ276oHlsqWDSW9I",
-  authDomain: "ubicacion-900b9.firebaseapp.com",
-  projectId: "ubicacion-900b9",
-  storageBucket: "ubicacion-900b9.appspot.com",
-  messagingSenderId: "711919594487",
-  appId: "1:711919594487:web:538aac6d2c6ec5c7205cf2",
-  measurementId: "G-53Z7CN9RDV"
+      authDomain: "ubicacion-900b9.firebaseapp.com",
+      databaseURL: "https://ubicacion-900b9-default-rtdb.firebaseio.com",
+      projectId: "ubicacion-900b9",
+      storageBucket: "ubicacion-900b9.appspot.com",
+      messagingSenderId: "711919594487",
+      appId: "1:711919594487:web:538aac6d2c6ec5c7205cf2",
+      measurementId: "G-53Z7CN9RDV"
     };
 
+    // Inicializa Firebase
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
 
+    // Inicializa mapa
+    let map;
+    let markers = [];
+
+    function initMap() {
+      // Centro inicial (Ciudad de México)
+      const centro = { lat: 19.4326, lng: -99.1332 };
+
+      map = new google.maps.Map(document.getElementById("map"), {
+        zoom: 6,
+        center: centro,
+      });
+
+      // Escuchar ubicaciones en Firebase y agregar marcadores
+      const ref = database.ref('ubicaciones');
+      ref.on('child_added', snapshot => {
+        const data = snapshot.val();
+        const pos = { lat: data.lat, lng: data.lon };
+
+        const marker = new google.maps.Marker({
+          position: pos,
+          map: map,
+        });
+        markers.push(marker);
+      });
+    }
+
+    // Función para enviar ubicación
     function enviarUbicacion() {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
@@ -44,6 +87,7 @@
             })
             .catch((err) => {
               document.getElementById("mensaje").innerText = "❌ Error al enviar ubicación.";
+              console.error(err);
             });
           },
           function(error) {
@@ -54,7 +98,11 @@
         document.getElementById("mensaje").innerText = "❌ Tu navegador no soporta geolocalización.";
       }
     }
+
+    // Esperar a que el DOM cargue para iniciar el mapa
+    window.onload = initMap;
   </script>
 </body>
 </html>
+
 
