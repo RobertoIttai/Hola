@@ -22,7 +22,7 @@ function AiChatBot() {
       // Replace 'https://YOUR-RENDER-BACKEND-URL.onrender.com' with your actual Render backend URL
       // Example: 'https://my-sports-bot.onrender.com/generate-ai-response'
       // During local development, this might be 'http://localhost:3000/generate-ai-response'
-      const backendUrl = 'https://YOUR-RENDER-BACKEND-URL.onrender.com/generate-ai-response';
+      const backendUrl = 'https://pickdeldia-mvp-1.onrender.com';
 
       // Send a POST request to your backend with the user's message as prompt
       const response = await axios.post(backendUrl, { 
