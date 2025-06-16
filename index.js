@@ -15,6 +15,17 @@ app.get('/pick', (req, res) => {
   res.json({ pick: pickDelDia });
 });
 
+// Nueva ruta POST para el chat
+app.post('/chat', (req, res) => {
+  const { message } = req.body;
+
+  // Respuesta simulada por ahora
+  const respuesta = `Recibí tu mensaje: "${message}". Pronto te daré un pick ganador 😉`;
+
+  res.json({ reply: respuesta });
+});
+
 app.listen(PORT, () => {
   console.log(`Servidor activo en el puerto ${PORT}`);
 });
+
