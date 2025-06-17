@@ -86,6 +86,41 @@ app.post('/generate-ai-response', async (req, res) => {
     });
   }
 });
+// Sportmonks API code and conection with Gemini
+
+const axios = require('axios'); // Agrega esto una sola vez al inicio si aún no está
+
+const SPORTMONKS_API_TOKEN = process.env.SPORTMONKS_API_TOKEN;
+
+app.get('/analisis', async (req, res) => {
+  try {
+    const response = await axios.get(`https://soccer.sportmonks.com/api/v2.0/fixtures`, {
+      params: {
+        api_token: SPORTMONKS_API_TOKEN,
+        include: 'localTeam,visitorTeam',
+        per_page: 3, // Ajusta el número de partidos que quieras analizar
+      }
+    });
+
+    const partidos = response.data.data.map(f => {
+      return `${f.localTeam.data.name} vs ${f.visitorTeam.data.name}`;
+    }).join('\n');
+
+    const prompt = `Analiza los siguientes partidos y dame un pick de apuesta basado en estadísticas y tendencias:\n${partidos}`;
+
+    const result = await geminiModel.generateContent(prompt);
+    const aiResponseText = result.response.text();
+
+    res.json({
+      partidosAnalizados: partidos,
+      recomendacion: aiResponseText
+    });
+
+  } catch (error) {
+    console.error('Error en /analisis:', error.message);
+    res.status(500).json({ error: 'Fallo en el análisis de partidos' });
+  }
+});
 
 // Start the server
 app.listen(PORT, () => {
