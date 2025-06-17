@@ -19,6 +19,17 @@ app.post('/analisis', async (req, res) => {
     // Manejo de errores
   }
 });
+
+app.post('/analisis', async (req, res) => {
+  console.log("Entré a /analisis");
+  try {
+    // Código análisis
+  } catch (e) {
+    console.error("Error en /analisis:", e);
+    res.status(500).json({ error: "Error interno" });
+  }
+});
+
 // Define the port for the server, using environment variable or default to 3000
 const PORT = process.env.PORT || 3000;
 
