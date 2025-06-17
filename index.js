@@ -10,6 +10,15 @@ app.use(cors());
 // Use express.json() middleware to parse JSON request bodies
 app.use(express.json());
 
+// REVISAR ERRORES DE SPORTMONKS
+
+app.post('/analisis', async (req, res) => {
+  try {
+    // Aquí va el código que te pasé para llamar a Sportmonks y Gemini
+  } catch (error) {
+    // Manejo de errores
+  }
+});
 // Define the port for the server, using environment variable or default to 3000
 const PORT = process.env.PORT || 3000;
 
