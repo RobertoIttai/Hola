@@ -1,6 +1,5 @@
 const express = require('express');
 const cors = require('cors');
-const axios = require('axios');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 require('dotenv').config();
 
@@ -12,13 +11,6 @@ app.use(express.json());
 
 // Define the port, using environment variable or default to 3000
 const PORT = process.env.PORT || 3000;
-
-// --- Configure API-Football (RapidAPI) ---
-const API_FOOTBALL_KEY = process.env.API_FOOTBALL_KEY;
-if (!API_FOOTBALL_KEY) {
-  console.error("ERROR: API_FOOTBALL_KEY environment variable is not set.");
-  console.error("Please set it in Render's dashboard under Environment Variables.");
-}
 
 // --- Configure Google Gemini API ---
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
@@ -73,60 +65,31 @@ app.post('/generate-ai-response', async (req, res) => {
   }
 });
 
-// Route for match analysis using API-Football and Gemini
+// Route for match analysis using user-provided match data and Gemini
 app.post('/analisis', async (req, res) => {
   try {
-    // Fetch upcoming or recent Liga MX matches (league_id=262, season=2025)
-    const fixturesUrl = 'https://api-football-v1.p.rapidapi.com/v3/fixtures';
-    const fixturesResponse = await axios.get(fixturesUrl, {
-      headers: {
-        'X-RapidAPI-Key': API_FOOTBALL_KEY,
-        'X-RapidAPI-Host': 'api-football-v1.p.rapidapi.com'
-      },
-      params: {
-        league: 262, // Liga MX
-        season: 2025,
-        next: 3 // Get the next 3 upcoming matches (or use 'last: 3' for recent matches)
-      }
-    });
-
-    const matches = fixturesResponse.data.response;
-    if (!matches || matches.length === 0) {
-      return res.status(404).json({ error: 'No se encontraron partidos de la Liga MX.' });
+    const { matches } = req.body;
+    if (!matches || !Array.isArray(matches) || matches.length === 0) {
+      return res.status(400).json({
+        error: 'Se requiere un arreglo de partidos en el cuerpo de la solicitud.',
+        details: 'Ejemplo: {"matches": [{"homeTeam": "América", "awayTeam": "Cruz Azul", "date": "2025-07-11", "odds": {"home": 2.0, "draw": 3.2, "away": 3.5}}, ...]}'
+      });
     }
 
     // Format matches for the Gemini prompt
-    const partidos = await Promise.all(matches.map(async (match) => {
-      const homeTeam = match.teams.home.name;
-      const awayTeam = match.teams.away.name;
-      const date = match.fixture.date;
-
-      // Fetch odds for this match
-      let winHome = 'N/A';
-      let draw = 'N/A';
-      let winAway = 'N/A';
-      try {
-        const oddsUrl = 'https://api-football-v1.p.rapidapi.com/v3/odds';
-        const oddsResponse = await axios.get(oddsUrl, {
-          headers: {
-            'X-RapidAPI-Key': API_FOOTBALL_KEY,
-            'X-RapidAPI-Host': 'api-football-v1.p.rapidapi.com'
-          },
-          params: { fixture: match.fixture.id }
-        });
-        const oddsData = oddsResponse.data.response[0]?.bookmakers[0]?.bets[0]?.values || [];
-        winHome = oddsData.find(o => o.value === 'Home')?.odd || 'N/A';
-        draw = oddsData.find(o => o.value === 'Draw')?.odd || 'N/A';
-        winAway = oddsData.find(o => o.value === 'Away')?.odd || 'N/A';
-      } catch (error) {
-        console.warn(`No odds for ${homeTeam} vs ${awayTeam}:`, error.message);
+    const partidos = matches.map(match => {
+      const { homeTeam, awayTeam, date, odds } = match;
+      if (!homeTeam || !awayTeam || !date) {
+        return 'Partido inválido: faltan homeTeam, awayTeam o date.';
       }
-
+      const winHome = odds?.home || 'N/A';
+      const draw = odds?.draw || 'N/A';
+      const winAway = odds?.away || 'N/A';
       return `${homeTeam} vs ${awayTeam} (Fecha: ${date}, Cuotas: ${winHome}/${draw}/${winAway})`;
-    }));
+    });
 
     // Create prompt for Gemini
-    const prompt = `Analiza los siguientes partidos de la Liga MX y dame un pick de apuesta basado en estadísticas, tendencias y cuotas:\n${partidos.join('\n')}\nProporciona un pronóstico breve (máximo 100 palabras) por partido, explicando tu razonamiento.`;
+    const prompt = `Analiza los siguientes partidos de la Liga MX y dame un pick de apuesta basado en estadísticas, tendencias y cuotas:\n${partidos.join('\n')}\nProporciona un pronóstico breve (máximo 100 palabras) por partido, explicando tu razonamiento. Si las cuotas son 'N/A', usa el contexto de los equipos para sugerir un pronóstico.`;
 
     // Call Gemini for the recommendation
     const result = await geminiModel.generateContent(prompt);
