@@ -1,57 +1,45 @@
-// Import necessary modules (CommonJS style - adjust to ES Modules if "type": "module" is in package.json)
 const express = require('express');
-const cors = require('cors'); // Import cors for handling cross-origin requests
-const axios = require('axios'); // Para hacer peticiones HTTP a Sportmonks
-const { GoogleGenerativeAI } = require('@google/generative-ai'); // Import Google Generative AI library
+const cors = require('cors');
+const axios = require('axios');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+require('dotenv').config();
 
 const app = express();
 
-// Use cors middleware to allow cross-origin requests from your frontend
-app.use(cors()); 
-// Use express.json() middleware to parse JSON request bodies
+// Enable CORS for cross-origin requests from your frontend
+app.use(cors());
 app.use(express.json());
 
-// Define the port for the server, using environment variable or default to 3000
+// Define the port, using environment variable or default to 3000
 const PORT = process.env.PORT || 3000;
 
-// --- Configure Google Gemini API ---
-// It's CRUCIAL to get the API key from environment variables for security.
-// NEVER hardcode your API key in production code.
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+// --- Configure API-Football (RapidAPI) ---
+const API_FOOTBALL_KEY = process.env.API_FOOTBALL_KEY;
+if (!API_FOOTBALL_KEY) {
+  console.error("ERROR: API_FOOTBALL_KEY environment variable is not set.");
+  console.error("Please set it in Render's dashboard under Environment Variables.");
+}
 
-// Check if the API key is configured
+// --- Configure Google Gemini API ---
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 if (!GEMINI_API_KEY) {
   console.error("ERROR: GEMINI_API_KEY environment variable is not set.");
   console.error("Please set it in Render's dashboard under Environment Variables.");
-  // process.exit(1); // Opcionalmente detener el servidor si no hay API Key
 }
 
-// Initialize the Google Generative AI client with your API key
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-
-// Select the Gemini model that worked for you.
-// 'models/gemini-1.5-flash-latest' is recommended for efficiency and generous free tier limits.
-const geminiModel = genAI.getGenerativeModel({ model: 'models/gemini-1.5-flash-latest' });
-
-// --- Sportmonks API Token ---
-const SPORTMONKS_API_TOKEN = process.env.SPORTMONKS_API_TOKEN;
-
-if (!SPORTMONKS_API_TOKEN) {
-  console.error("ERROR: SPORTMONKS_API_TOKEN environment variable is not set.");
-  console.error("Please set it in Render's dashboard under Environment Variables.");
-  // process.exit(1);
-}
+const geminiModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
 
 // --- Routes ---
 
-// Simple root route to confirm server is running
+// Root route to confirm server is running
 app.get('/', (req, res) => {
   res.send('¡Hola desde Render + GitHub! Backend del bot de apuestas activo.');
 });
 
-// Route to get a daily pick (example)
+// Route for a daily pick (example)
 app.get('/pick', (req, res) => {
-  const pickDelDia = "⚽ Pick: Gana el Real Madrid y hay +2.5 goles";
+  const pickDelDia = "⚽ Pick: Gana el América y hay +2.5 goles";
   res.json({ pick: pickDelDia });
 });
 
@@ -62,67 +50,99 @@ app.post('/chat', (req, res) => {
   res.json({ reply: respuesta });
 });
 
-// Route to handle AI generation requests
+// Route for AI-generated responses
 app.post('/generate-ai-response', async (req, res) => {
   try {
     const { prompt } = req.body;
-
     if (!prompt) {
       return res.status(400).json({ error: "No 'prompt' provided in the request body." });
     }
 
     console.log(`Received prompt from frontend: "${prompt}"`);
-
     const result = await geminiModel.generateContent(prompt);
     const aiResponseText = result.response.text();
-
     console.log(`AI response: "${aiResponseText}"`);
 
     res.json({ ai_response: aiResponseText });
-
   } catch (error) {
     console.error('Error calling Gemini API:', error);
-    res.status(500).json({ 
-      error: "Failed to generate AI response.", 
-      details: error.message || "An unknown error occurred." 
+    res.status(500).json({
+      error: "Failed to generate AI response.",
+      details: error.message || "An unknown error occurred."
     });
   }
 });
 
-// *** Nueva ruta POST /analisis con Sportmonks y Gemini ***
-
+// Route for match analysis using API-Football and Gemini
 app.post('/analisis', async (req, res) => {
   try {
-    // Petición a Sportmonks para obtener los próximos partidos
-    const response = await axios.get(`https://soccer.sportmonks.com/api/v2.0/fixtures`, {
+    // Fetch upcoming or recent Liga MX matches (league_id=262, season=2025)
+    const fixturesUrl = 'https://api-football-v1.p.rapidapi.com/v3/fixtures';
+    const fixturesResponse = await axios.get(fixturesUrl, {
+      headers: {
+        'X-RapidAPI-Key': API_FOOTBALL_KEY,
+        'X-RapidAPI-Host': 'api-football-v1.p.rapidapi.com'
+      },
       params: {
-        api_token: SPORTMONKS_API_TOKEN,
-        include: 'localTeam,visitorTeam',
-        per_page: 3,
+        league: 262, // Liga MX
+        season: 2025,
+        next: 3 // Get the next 3 upcoming matches (or use 'last: 3' for recent matches)
       }
     });
 
-    // Formatear los partidos para el prompt
-    const partidos = response.data.data.map(f => {
-      return `${f.localTeam.data.name} vs ${f.visitorTeam.data.name}`;
-    }).join('\n');
+    const matches = fixturesResponse.data.response;
+    if (!matches || matches.length === 0) {
+      return res.status(404).json({ error: 'No se encontraron partidos de la Liga MX.' });
+    }
 
-    // Crear prompt para Gemini con la info de partidos
-    const prompt = `Analiza los siguientes partidos y dame un pick de apuesta basado en estadísticas y tendencias:\n${partidos}`;
+    // Format matches for the Gemini prompt
+    const partidos = await Promise.all(matches.map(async (match) => {
+      const homeTeam = match.teams.home.name;
+      const awayTeam = match.teams.away.name;
+      const date = match.fixture.date;
 
-    // Llamar a Gemini para generar la recomendación
+      // Fetch odds for this match
+      let winHome = 'N/A';
+      let draw = 'N/A';
+      let winAway = 'N/A';
+      try {
+        const oddsUrl = 'https://api-football-v1.p.rapidapi.com/v3/odds';
+        const oddsResponse = await axios.get(oddsUrl, {
+          headers: {
+            'X-RapidAPI-Key': API_FOOTBALL_KEY,
+            'X-RapidAPI-Host': 'api-football-v1.p.rapidapi.com'
+          },
+          params: { fixture: match.fixture.id }
+        });
+        const oddsData = oddsResponse.data.response[0]?.bookmakers[0]?.bets[0]?.values || [];
+        winHome = oddsData.find(o => o.value === 'Home')?.odd || 'N/A';
+        draw = oddsData.find(o => o.value === 'Draw')?.odd || 'N/A';
+        winAway = oddsData.find(o => o.value === 'Away')?.odd || 'N/A';
+      } catch (error) {
+        console.warn(`No odds for ${homeTeam} vs ${awayTeam}:`, error.message);
+      }
+
+      return `${homeTeam} vs ${awayTeam} (Fecha: ${date}, Cuotas: ${winHome}/${draw}/${winAway})`;
+    }));
+
+    // Create prompt for Gemini
+    const prompt = `Analiza los siguientes partidos de la Liga MX y dame un pick de apuesta basado en estadísticas, tendencias y cuotas:\n${partidos.join('\n')}\nProporciona un pronóstico breve (máximo 100 palabras) por partido, explicando tu razonamiento.`;
+
+    // Call Gemini for the recommendation
     const result = await geminiModel.generateContent(prompt);
     const aiResponseText = result.response.text();
 
-    // Responder con los partidos y la recomendación
+    // Respond with analyzed matches and recommendation
     res.json({
       partidosAnalizados: partidos,
       recomendacion: aiResponseText
     });
-
   } catch (error) {
     console.error('Error en /analisis:', error.message);
-    res.status(500).json({ error: 'Fallo en el análisis de partidos' });
+    res.status(500).json({
+      error: 'Fallo en el análisis de partidos',
+      details: error.message || 'An unknown error occurred.'
+    });
   }
 });
 
